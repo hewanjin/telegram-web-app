@@ -1,75 +1,83 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <title>Telegram Web App 示例 - 颜色选择器</title>
-  <!-- 引入Telegram Web Apps SDK -->
+  <meta charset="UTF-8">
+  <title>进阶 Telegram Web App</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- 引入颜色选择器库 iro.js -->
-  <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: #ffffff;
-      font-family: Arial, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    #picker {
-      width: 300px;
-      height: 300px;
-      border-radius: 10px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.2);
-    }
+  <style id="theme-style">
+    body { font-family: sans-serif; margin: 2em; }
+    .user-info { margin-bottom: 1em; }
+    .dark { background: #222; color: #fff; }
+    .light { background: #fff; color: #222; }
+    .form-group { margin: 1em 0; }
+    input, button { padding: 0.5em; font-size: 1em; }
   </style>
 </head>
 <body>
-  <div id="picker"></div>
-
+  <div class="user-info" id="user-info"></div>
+  <form id="data-form">
+    <div class="form-group">
+      <label>昵称：</label>
+      <input type="text" id="nickname" required>
+    </div>
+    <div class="form-group">
+      <label>年龄：</label>
+      <input type="number" id="age" required>
+    </div>
+    <button type="submit">提交表单</button>
+  </form>
+  <button onclick="showAlert()">弹窗演示</button>
+  <button onclick="toggleMainButton()">切换主按钮显示</button>
   <script>
-    // 初始化颜色选择器
-    const colorPicker = new iro.ColorPicker("#picker", {
-      width: 300,
-      borderWidth: 1,
-      borderColor: "#ccc",
-      layout: [
-        {
-          component: iro.ui.Box,
-        },
-        {
-          component: iro.ui.Slider,
-          options: {
-            sliderType: 'hue'
-          }
-        }
-      ]
+    const tg = window.Telegram.WebApp;
+
+    // 主题自适应
+    function applyTheme() {
+      document.body.className = tg.colorScheme === 'dark' ? 'dark' : 'light';
+    }
+    tg.onEvent('themeChanged', applyTheme);
+    applyTheme();
+
+    // 显示用户信息
+    const user = tg.initDataUnsafe?.user;
+    if (user) {
+      document.getElementById('user-info').innerHTML =
+        `<b>欢迎, ${user.username || user.first_name}</b><br>ID: ${user.id}`;
+    } else {
+      document.getElementById('user-info').innerText = '未获取到用户信息，请在 Telegram 客户端打开';
+    }
+
+    // 主按钮配置
+    tg.MainButton.setText('发送数据给 Bot');
+    tg.MainButton.onClick(() => {
+      const nickname = document.getElementById('nickname').value;
+      const age = document.getElementById('age').value;
+      const data = { nickname, age };
+      tg.sendData(JSON.stringify(data)); // 发送数据回 Bot
     });
 
-    // 页面加载完成，通知Telegram WebApp准备好
-    Telegram.WebApp.ready();
+    // 表单提交
+    document.getElementById('data-form').onsubmit = e => {
+      e.preventDefault();
+      tg.MainButton.show();
+      tg.showPopup({
+        title: '提示',
+        message: '请点击下方主按钮发送数据给 Bot',
+        buttons: [{ id: 'ok', type: 'default', text: '好的' }]
+      });
+    };
 
-    // 设置主按钮文本并显示
-    Telegram.WebApp.MainButton.setText("选择颜色").show();
+    // 弹窗演示
+    function showAlert() {
+      tg.showAlert('这是 Telegram Web App 的弹窗演示！');
+    }
 
-    // 监听颜色变化，实时改变背景色
-    colorPicker.on("color:change", function(color) {
-      document.body.style.backgroundColor = color.hexString;
-    });
+    // 主按钮显示/隐藏切换
+    function toggleMainButton() {
+      tg.MainButton.isVisible ? tg.MainButton.hide() : tg.MainButton.show();
+    }
 
-    // 主按钮点击事件，发送颜色数据给bot并关闭web app
-    Telegram.WebApp.MainButton.onClick(() => {
-      const colorData = {
-        hex: colorPicker.color.hexString,
-        rgb: colorPicker.color.rgb
-      };
-      // 发送数据给bot
-      Telegram.WebApp.sendData(JSON.stringify(colorData));
-      // 关闭Web App
-      Telegram.WebApp.close();
-    });
+    tg.ready(); // 通知 Telegram 已加载完成
   </script>
 </body>
 </html>
